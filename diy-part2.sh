@@ -34,7 +34,8 @@ cat > "${DTS_FILE}" << 'EOF'
 		label-mac-device = &gmac0;
 	};
 	chosen {
-		bootargs = "console=ttyS0,115200n8 root=/dev/mtdblock3 rootfstype=squashfs,jffs2";
+		/* 方案 A: 使用 root=/dev/root 自动探测 rootfs，无需手动指定偏移 */
+		bootargs = "console=ttyS0,115200n8 root=/dev/root rootfstype=squashfs,jffs2";
 	};
 	leds {
 		compatible = "gpio-leds";
@@ -107,11 +108,10 @@ cat > "${DTS_FILE}" << 'EOF'
 				};
 			};
 			firmware: partition@50000 {
-			    label = "firmware";
-			    reg = <0x050000 0x1FB0000>;
-			    compatible = "openwrt,firmware";
-			    openwrt,offset = <0x2D23B0>;   // 相对于分区起始的偏移
-			    linux,rootfs;
+				label = "firmware";
+				reg = <0x050000 0x1FB0000>;
+				compatible = "openwrt,firmware";
+				linux,rootfs;
 			};
 		};
 	};
@@ -194,7 +194,7 @@ if [ ! -f "${DTS_FILE}" ]; then
 fi
 echo "DTS文件生成成功: ${DTS_FILE}"
 
-# ===== 新增：删除可能存在的旧设备定义，避免重复/冲突 =====
+# 删除可能存在的旧设备定义，避免冲突（确保新规则生效）
 sed -i '/maiwardi_w6180/d' "$MK_FILE"
 
 # 追加新设备定义（标准 OpenWrt 格式，非 trx）
@@ -212,7 +212,7 @@ endef
 TARGET_DEVICES += maiwardi_w6180
 MK_EOF
 
-# ===== 新增：验证定义是否写入成功 =====
+# 验证定义是否写入成功（方便在编译日志中检查）
 echo "===== mt7621.mk 中 maiwardi_w6180 定义 ====="
 grep -A10 "maiwardi_w6180" "$MK_FILE" || echo "未找到定义！"
 echo "=================== 全部脚本执行完毕 ==================="
