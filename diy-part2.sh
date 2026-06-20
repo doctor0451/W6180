@@ -18,7 +18,7 @@ if [ ! -d "${DTS_DIR}" ]; then
     exit 1
 fi
 
-# 写入DTS，使用标准EOF无多余特殊符号
+# 写入DTS，修复分区长度+分区标签消除OF报错
 cat > "${DTS_FILE}" << 'EOF'
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /dts-v1/;
@@ -84,16 +84,16 @@ cat > "${DTS_FILE}" << 'EOF'
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			partition@0 {
+			uboot: partition@0 {
 				label = "u-boot";
 				reg = <0x000000 0x030000>;
 				read-only;
 			};
-			partition@30000 {
+			env: partition@30000 {
 				label = "env";
 				reg = <0x030000 0x010000>;
 			};
-			partition@40000 {
+			factory: partition@40000 {
 				label = "factory";
 				reg = <0x040000 0x010000>;
 				read-only;
@@ -112,9 +112,9 @@ cat > "${DTS_FILE}" << 'EOF'
 					};
 				};
 			};
-			partition@50000 {
+			firmware: partition@50000 {
 				label = "firmware";
-				reg = <0x050000 0x1FA0000>;
+				reg = <0x050000 0x1FB000>;
 				compatible = "openwrt,firmware";
 				linux,rootfs;
 			};
