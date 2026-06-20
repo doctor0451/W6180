@@ -111,7 +111,7 @@ cat > "${DTS_FILE}" << 'EOF'
 				label = "firmware";
 				reg = <0x050000 0x1FB0000>;
 				compatible = "openwrt,firmware";
-                                openwrt,offset = <0x400000>;   /* 对应 KERNEL_SIZE=4M */
+                openwrt,offset = <0x400000>;   /* 对应 KERNEL_SIZE=4M */
 				linux,rootfs;
 			};
 		};
