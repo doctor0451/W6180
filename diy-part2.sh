@@ -35,7 +35,7 @@ cat > "${DTS_FILE}" << 'EOF'
 	};
 	chosen {
 		/* 方案 A: 使用 root=/dev/root 自动探测 rootfs，无需手动指定偏移 */
-		bootargs = "console=ttyS0,115200n8 root=/dev/root rootfstype=squashfs,jffs2";
+		bootargs = "console=ttyS0,115200n8 root=/dev/mtdblock3 rootfstype=squashfs,jffs2";
 	};
 	leds {
 		compatible = "gpio-leds";
@@ -111,6 +111,7 @@ cat > "${DTS_FILE}" << 'EOF'
 				label = "firmware";
 				reg = <0x050000 0x1FB0000>;
 				compatible = "openwrt,firmware";
+                                openwrt,offset = <0x400000>;   /* 对应 KERNEL_SIZE=4M */
 				linux,rootfs;
 			};
 		};
@@ -204,6 +205,7 @@ define Device/maiwardi_w6180
   DEVICE_MODEL := W6180
   DEVICE_DTS := mt7621_maiwardi_w6180
   IMAGE_SIZE := 32448k
+  KERNEL_SIZE := 4M                     # 固定内核区域为 4MB
   IMAGES += factory.bin sysupgrade.bin
   IMAGE/factory.bin := append-kernel | append-rootfs | pad-rootfs
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
