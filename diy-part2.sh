@@ -4,20 +4,17 @@ set -x
 # 固定源码根目录（openwrt文件夹内绝对相对路径）
 BASE_TARGET="target/linux/ramips"
 DTS_DIR="${BASE_TARGET}/dts"
-DTS_FILE="${DTS_DIR}/mt7621_maiwardi_w6180.dts"
+DTS_FILE="${BASE_TARGET}/mt7621_maiwardi_w6180.dts"
 MK_FILE="${BASE_TARGET}/image/mt7621.mk"
-
 # 强制逐级创建目录，打印路径确认
 echo "创建DTS目录: ${DTS_DIR}"
 mkdir -p "${DTS_DIR}"
 mkdir -p "${BASE_TARGET}/image"
-
 # 校验目录是否生成，失败直接退出
 if [ ! -d "${DTS_DIR}" ]; then
     echo "ERROR DTS目录创建失败！"
     exit 1
 fi
-
 # 写入DTS，使用标准EOF无多余特殊符号
 cat > "${DTS_FILE}" << 'EOF'
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
@@ -25,16 +22,13 @@ cat > "${DTS_FILE}" << 'EOF'
 #include "mt7621.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-
 / {
 	compatible = "maiwardi,w6180", "mediatek,mt7621-soc";
 	model = "Maiwardi W6180";
-
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x10000000>;
 	};
-
 	aliases {
 		led-boot = &led_power;
 		led-failsafe = &led_power;
@@ -42,11 +36,9 @@ cat > "${DTS_FILE}" << 'EOF'
 		led-upgrade = &led_power;
 		label-mac-device = &gmac0;
 	};
-
 	chosen {
 		bootargs = "console=ttyS0,115200n8 root=/dev/mtdblock3 rootfstype=squashfs,jffs2";
 	};
-
 	leds {
 		compatible = "gpio-leds";
 		led_power: power {
@@ -66,7 +58,6 @@ cat > "${DTS_FILE}" << 'EOF'
 			gpios = <&gpio 15 GPIO_ACTIVE_HIGH>;
 		};
 	};
-
 	keys {
 		compatible = "gpio-keys";
 		reset {
@@ -76,11 +67,9 @@ cat > "${DTS_FILE}" << 'EOF'
 		};
 	};
 };
-
 &nand {
 	status = "disabled";
 };
-
 &spi0 {
 	status = "okay";
 	flash@0 {
@@ -92,7 +81,6 @@ cat > "${DTS_FILE}" << 'EOF'
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
 			#size-cells = <1>;
-
 			partition@0 {
 				label = "u-boot";
 				reg = <0x000000 0x030000>;
@@ -130,23 +118,19 @@ cat > "${DTS_FILE}" << 'EOF'
 		};
 	};
 };
-
 &gmac0 {
 	nvmem-cells = <&macaddr_factory_0>;
 	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
-
 &gmac1 {
 	nvmem-cells = <&macaddr_factory_8000>;
 	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
-
 &pcie {
 	status = "okay";
 };
-
 &pcie1 {
 	wifi@0,0 {
 		compatible = "mediatek,mt7905";
@@ -155,7 +139,6 @@ cat > "${DTS_FILE}" << 'EOF'
 		nvmem-cell-names = "eeprom";
 	};
 };
-
 &switch0 {
 	mediatek,port-map = "llllw";
 	mediatek,mt7530;
@@ -199,7 +182,6 @@ cat > "${DTS_FILE}" << 'EOF'
 		phy4: phy@4 { reg = <4>; status = "disabled"; };
 	};
 };
-
 &state_default {
 	gpio {
 		groups = "jtag", "uart3", "wdt";
@@ -207,15 +189,13 @@ cat > "${DTS_FILE}" << 'EOF'
 	};
 };
 EOF
-
 # 写入完成校验文件是否存在
 if [ ! -f "${DTS_FILE}" ]; then
     echo "ERROR DTS文件写入失败！文件不存在"
     exit 1
 fi
 echo "DTS文件生成成功: ${DTS_FILE}"
-
-# 追加设备定义到mk，使用Tab缩进（关键！makefile禁止空格）
+# 追加设备定义到mk，删除-M 0x50000，生成标准TRX头适配Breed
 cat >> "${MK_FILE}" << 'MK_EOF'
 define Device/maiwardi_w6180
   DEVICE_VENDOR := Maiwardi
@@ -223,11 +203,10 @@ define Device/maiwardi_w6180
   DEVICE_DTS := mt7621_maiwardi_w6180
   IMAGE_SIZE := 32448k
   IMAGES += factory.bin sysupgrade.bin
-  IMAGE/factory.bin := trx -M 0x50000 $(IMAGE_SIZE) $@
+  IMAGE/factory.bin := trx $(IMAGE_SIZE) $@
   DEVICE_PACKAGES := mt76da-firmware kmod-mt76-connac mtk-wifi-da kmod-m25p80
 endef
 TARGET_DEVICES += maiwardi_w6180
 MK_EOF
-
 echo "mt7621.mk 设备定义追加完成"
 echo "=================== 全部脚本执行完毕 ==================="
