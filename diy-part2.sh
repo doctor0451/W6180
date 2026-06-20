@@ -200,7 +200,8 @@ define Device/maiwardi_w6180
   DEVICE_DTS := mt7621_maiwardi_w6180
   IMAGE_SIZE := 32448k
   IMAGES += factory.bin sysupgrade.bin
-  IMAGE/factory.bin := trx $(IMAGE_SIZE) $@
+  IMAGE/factory.bin := append-kernel | append-rootfs | pad-rootfs
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
   DEVICE_PACKAGES := mt76da-firmware kmod-mt76-connac mtk-wifi-da kmod-m25p80
 endef
 TARGET_DEVICES += maiwardi_w6180
