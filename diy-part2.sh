@@ -4,17 +4,20 @@ set -x
 # 固定源码根目录（openwrt文件夹内绝对相对路径）
 BASE_TARGET="target/linux/ramips"
 DTS_DIR="${BASE_TARGET}/dts"
-DTS_FILE="${BASE_TARGET}/mt7621_maiwardi_w6180.dts"
+DTS_FILE="${DTS_DIR}/mt7621_maiwardi_w6180.dts"
 MK_FILE="${BASE_TARGET}/image/mt7621.mk"
+
 # 强制逐级创建目录，打印路径确认
 echo "创建DTS目录: ${DTS_DIR}"
 mkdir -p "${DTS_DIR}"
 mkdir -p "${BASE_TARGET}/image"
+
 # 校验目录是否生成，失败直接退出
 if [ ! -d "${DTS_DIR}" ]; then
     echo "ERROR DTS目录创建失败！"
     exit 1
 fi
+
 # 写入DTS，使用标准EOF无多余特殊符号
 cat > "${DTS_FILE}" << 'EOF'
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
@@ -189,13 +192,15 @@ cat > "${DTS_FILE}" << 'EOF'
 	};
 };
 EOF
+
 # 写入完成校验文件是否存在
 if [ ! -f "${DTS_FILE}" ]; then
     echo "ERROR DTS文件写入失败！文件不存在"
     exit 1
 fi
 echo "DTS文件生成成功: ${DTS_FILE}"
-# 追加设备定义到mk，删除-M 0x50000，生成标准TRX头适配Breed
+
+# 追加设备定义到mk，已移除-M 0x50000，标准TRX适配Breed
 cat >> "${MK_FILE}" << 'MK_EOF'
 define Device/maiwardi_w6180
   DEVICE_VENDOR := Maiwardi
@@ -208,5 +213,6 @@ define Device/maiwardi_w6180
 endef
 TARGET_DEVICES += maiwardi_w6180
 MK_EOF
+
 echo "mt7621.mk 设备定义追加完成"
 echo "=================== 全部脚本执行完毕 ==================="
