@@ -108,7 +108,7 @@ cat > "${DTS_FILE}" << 'EOF'
 			};
 			firmware: partition@50000 {
 				label = "firmware";
-				reg = <0x050000 0x1FB000>;
+				reg = <0x050000 0x1FB0000>;
 				compatible = "openwrt,firmware";
 				linux,rootfs;
 			};
