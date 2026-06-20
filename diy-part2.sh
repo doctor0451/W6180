@@ -1,36 +1,14 @@
 #!/bin/bash
-#
-# https://github.com/P3TERX/Actions-OpenWrt
-# File name: diy-part2.sh
-# Description: OpenWrt DIY script part 2 (After Update feeds)
-#
-# Copyright (c) 2019-2024 P3TERX <https://p3terx.com>
-#
-# This is free software, licensed under the MIT License.
-# See /LICENSE for more information.
-#
-
-# Modify default IP
-#sed -i 's/192.168.1.1/192.168.50.5/g' package/base-files/files/bin/config_generate
-
-# Modify default theme
-#sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile
-
-# Modify hostname
-#sed -i 's/OpenWrt/P3TERX-Router/g' package/base-files/files/bin/config_generate
-
-
-#!/bin/bash
 set -e
 set -x
-DTS_FILE="target/linux/ramips/dts/mt7621_xiaomi_mi-router-cr6606.dts"
+# 不覆盖原厂CR6606，新建独立W6180 DTS
+DTS_FILE="target/linux/ramips/dts/mt7621_maiwardi_w6180.dts"
 MK_FILE="target/linux/ramips/image/mt7621.mk"
-
-# 自动创建dts目录+空文件，消除文件不存在报错
+# 创建dts目录
 mkdir -p target/linux/ramips/dts
 touch "$DTS_FILE"
 
-# 1. 覆盖写入W6180完整DTS
+# 1. 写入正确W6180 DTS（修复内存、WiFi、交换机、分区）
 cat > "$DTS_FILE" << 'EOF'
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /dts-v1/;
@@ -40,6 +18,11 @@ cat > "$DTS_FILE" << 'EOF'
 / {
 	compatible = "maiwardi,w6180", "mediatek,mt7621-soc";
 	model = "Maiwardi W6180";
+	// 256MB内存声明（必须加）
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x10000000>;
+	};
 	aliases {
 		led-boot = &led_power;
 		led-failsafe = &led_power;
@@ -90,6 +73,7 @@ cat > "$DTS_FILE" << 'EOF'
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
+		broken-flash-reset; // SPI NOR修复参数
 		partitions {
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
@@ -144,8 +128,17 @@ cat > "$DTS_FILE" << 'EOF'
 &pcie {
 	status = "okay";
 };
+// 新增MT7905N WiFi节点（适配mt76da闭源驱动）
+&pcie1 {
+	wifi@0,0 {
+		compatible = "mediatek,mt7905";
+		reg = <0x0000 0 0 0 0>;
+		nvmem-cells = <&eeprom_factory_0>;
+		nvmem-cell-names = "eeprom";
+	};
+};
 &switch0 {
-	mediatek,port-map = "00001110";
+	mediatek,port-map = "llllw"; // 标准端口映射 l=lan w=wan
 	ports {
 		port@0 {
 			status = "okay";
@@ -177,3 +170,15 @@ cat > "$DTS_FILE" << 'EOF'
 	};
 };
 EOF
+
+# 2. 关键：在mt7621.mk末尾追加W6180设备定义（解决CONFIG_DEVICE_w6180=y找不到设备）
+cat >> "$MK_FILE" << 'MK_EOF'
+define Device/maiwardi_w6180
+  DEVICE_VENDOR := Maiwardi
+  DEVICE_MODEL := W6180
+  DEVICE_DTS := mt7621_maiwardi_w6180
+  IMAGE_SIZE := 32448k
+  DEVICE_PACKAGES := mt76da-firmware kmod-mt76-connac mtk-wifi-da
+endef
+TARGET_DEVICES += maiwardi_w6180
+MK_EOF
