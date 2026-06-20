@@ -1,13 +1,25 @@
 #!/bin/bash
 set -e
 set -x
-# 设备文件路径定义
-DTS_PATH="target/linux/ramips/dts/mt762_maiwardi_w6180.dts"
-MK_PATH="target/linux/ramips/image/mt7621.mk"
-# 新建DTS目录
-mkdir -p target/linux/ramips/dts
-# 写入修复后DTS（修复交换机、删除双重bootargs、无nand_ecc）
-cat > "$DTS_PATH" << 'EOF'
+# 固定源码根目录（openwrt文件夹内绝对相对路径）
+BASE_TARGET="target/linux/ramips"
+DTS_DIR="${BASE_TARGET}/dts"
+DTS_FILE="${DTS_DIR}/mt7621_maiwardi_w6180.dts"
+MK_FILE="${BASE_TARGET}/image/mt7621.mk"
+
+# 强制逐级创建目录，打印路径确认
+echo "创建DTS目录: ${DTS_DIR}"
+mkdir -p "${DTS_DIR}"
+mkdir -p "${BASE_TARGET}/image"
+
+# 校验目录是否生成，失败直接退出
+if [ ! -d "${DTS_DIR}" ]; then
+    echo "ERROR DTS目录创建失败！"
+    exit 1
+fi
+
+# 写入DTS，使用标准EOF无多余特殊符号
+cat > "${DTS_FILE}" << 'EOF'
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /dts-v1/;
 #include "mt7621.dtsi"
@@ -196,8 +208,15 @@ cat > "$DTS_PATH" << 'EOF'
 };
 EOF
 
-# 修正mk，增加factory.bin镜像（Breed可刷）
-cat >> "$MK_PATH" << 'MK_EOF'
+# 写入完成校验文件是否存在
+if [ ! -f "${DTS_FILE}" ]; then
+    echo "ERROR DTS文件写入失败！文件不存在"
+    exit 1
+fi
+echo "DTS文件生成成功: ${DTS_FILE}"
+
+# 追加设备定义到mk，使用Tab缩进（关键！makefile禁止空格）
+cat >> "${MK_FILE}" << 'MK_EOF'
 define Device/maiwardi_w6180
   DEVICE_VENDOR := Maiwardi
   DEVICE_MODEL := W6180
@@ -210,9 +229,5 @@ endef
 TARGET_DEVICES += maiwardi_w6180
 MK_EOF
 
-echo "===== 修复完成 ===="
-echo "1. 交换机mt7530 PHY绑定修复，消除网口-EINVAL报错"
-echo "2. 删除bootargs mtdparts，解决OF分区cell告警"
-echo "3. mt7621.mk新增factory.bin（Breed底层刷机专用）"
-echo "4. 设备名maiwardi_w6180与.config保持一致"
-echo "刷机提醒：Breed只能刷factory.bin，sysupgrade.bin仅系统内升级使用"
+echo "mt7621.mk 设备定义追加完成"
+echo "=================== 全部脚本执行完毕 ==================="
