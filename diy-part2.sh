@@ -1,15 +1,12 @@
 #!/bin/bash
 set -e
 set -x
-
 # 设备文件路径定义
-DTS_PATH="target/linux/ramips/dts/mt7621_maiwardi_w6180.dts"
+DTS_PATH="target/linux/ramips/dts/mt762_maiwardi_w6180.dts"
 MK_PATH="target/linux/ramips/image/mt7621.mk"
-
 # 新建DTS目录
 mkdir -p target/linux/ramips/dts
-
-# 写入W6180完整设备树（移除nand_ecc，解决Label not found报错）
+# 写入修复后DTS（修复交换机、删除双重bootargs、无nand_ecc）
 cat > "$DTS_PATH" << 'EOF'
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /dts-v1/;
@@ -21,7 +18,6 @@ cat > "$DTS_PATH" << 'EOF'
 	compatible = "maiwardi,w6180", "mediatek,mt7621-soc";
 	model = "Maiwardi W6180";
 
-	// 256MB内存声明
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x10000000>;
@@ -36,7 +32,7 @@ cat > "$DTS_PATH" << 'EOF'
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200n8 mtdparts=spi0.0:192k(u-boot),64k(env),64k(factory),31488k(firmware) root=/dev/mtdblock3 rootfstype=squashfs,jffs2";
+		bootargs = "console=ttyS0,115200n8 root=/dev/mtdblock3 rootfstype=squashfs,jffs2";
 	};
 
 	leds {
@@ -69,7 +65,6 @@ cat > "$DTS_PATH" << 'EOF'
 	};
 };
 
-// 仅屏蔽nand控制器，删除nand_ecc节点（修复报错核心）
 &nand {
 	status = "disabled";
 };
@@ -140,7 +135,6 @@ cat > "$DTS_PATH" << 'EOF'
 	status = "okay";
 };
 
-// MT7905N 无线pcie节点，适配mt76da闭源驱动
 &pcie1 {
 	wifi@0,0 {
 		compatible = "mediatek,mt7905";
@@ -152,28 +146,45 @@ cat > "$DTS_PATH" << 'EOF'
 
 &switch0 {
 	mediatek,port-map = "llllw";
+	mediatek,mt7530;
+	#address-cells = <1>;
+	#size-cells = <0>;
 	ports {
 		port@0 {
-			status = "okay";
+			reg = <0>;
 			label = "wan";
 			phy-mode = "rgmii";
+			phy-handle = <&phy0>;
 		};
 		port@1 {
-			status = "okay";
+			reg = <1>;
 			label = "lan1";
 			phy-mode = "rgmii";
+			phy-handle = <&phy1>;
 		};
 		port@2 {
-			status = "okay";
+			reg = <2>;
 			label = "lan2";
 			phy-mode = "rgmii";
+			phy-handle = <&phy2>;
 		};
 		port@3 {
+			reg = <3>;
 			status = "disabled";
 		};
 		port@4 {
+			reg = <4>;
 			status = "disabled";
 		};
+	};
+	mdio-bus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		phy0: phy@0 { reg = <0>; };
+		phy1: phy@1 { reg = <1>; };
+		phy2: phy@2 { reg = <2>; };
+		phy3: phy@3 { reg = <3>; status = "disabled"; };
+		phy4: phy@4 { reg = <4>; status = "disabled"; };
 	};
 };
 
@@ -185,19 +196,23 @@ cat > "$DTS_PATH" << 'EOF'
 };
 EOF
 
-# 在mt7621.mk末尾追加W6180设备定义，菜单可识别设备
+# 修正mk，增加factory.bin镜像（Breed可刷）
 cat >> "$MK_PATH" << 'MK_EOF'
 define Device/maiwardi_w6180
   DEVICE_VENDOR := Maiwardi
   DEVICE_MODEL := W6180
   DEVICE_DTS := mt7621_maiwardi_w6180
   IMAGE_SIZE := 32448k
+  IMAGES += factory.bin sysupgrade.bin
+  IMAGE/factory.bin := trx -M 0x50000 $(IMAGE_SIZE) $@
   DEVICE_PACKAGES := mt76da-firmware kmod-mt76-connac mtk-wifi-da kmod-m25p80
 endef
 TARGET_DEVICES += maiwardi_w6180
 MK_EOF
 
-echo "===== DTS & mt7621.mk 写入完成 ====="
-echo "设备名称：maiwardi_w6180"
-echo "闪存总大小：32MB IMAGE_SIZE=32448k"
-echo "已移除nand_ecc节点，修复dtc Label找不到报错"
+echo "===== 修复完成 ===="
+echo "1. 交换机mt7530 PHY绑定修复，消除网口-EINVAL报错"
+echo "2. 删除bootargs mtdparts，解决OF分区cell告警"
+echo "3. mt7621.mk新增factory.bin（Breed底层刷机专用）"
+echo "4. 设备名maiwardi_w6180与.config保持一致"
+echo "刷机提醒：Breed只能刷factory.bin，sysupgrade.bin仅系统内升级使用"
