@@ -107,10 +107,11 @@ cat > "${DTS_FILE}" << 'EOF'
 				};
 			};
 			firmware: partition@50000 {
-				label = "firmware";
-				reg = <0x050000 0x1FB0000>;
-				compatible = "openwrt,firmware";
-				linux,rootfs;
+			    label = "firmware";
+			    reg = <0x050000 0x1FB0000>;
+			    compatible = "openwrt,firmware";
+			    openwrt,offset = <0x2D23B0>;   // 相对于分区起始的偏移
+			    linux,rootfs;
 			};
 		};
 	};
