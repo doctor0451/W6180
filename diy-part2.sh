@@ -193,6 +193,10 @@ if [ ! -f "${DTS_FILE}" ]; then
 fi
 echo "DTS文件生成成功: ${DTS_FILE}"
 
+# ===== 新增：删除可能存在的旧设备定义，避免重复/冲突 =====
+sed -i '/maiwardi_w6180/d' "$MK_FILE"
+
+# 追加新设备定义（标准 OpenWrt 格式，非 trx）
 cat >> "${MK_FILE}" << 'MK_EOF'
 define Device/maiwardi_w6180
   DEVICE_VENDOR := Maiwardi
@@ -207,5 +211,7 @@ endef
 TARGET_DEVICES += maiwardi_w6180
 MK_EOF
 
-echo "mt7621.mk 设备定义追加完成"
+# ===== 新增：验证定义是否写入成功 =====
+echo "===== mt7621.mk 中 maiwardi_w6180 定义 ====="
+grep -A10 "maiwardi_w6180" "$MK_FILE" || echo "未找到定义！"
 echo "=================== 全部脚本执行完毕 ==================="
